@@ -1,16 +1,48 @@
 import json
+import pymysql
 
-from common.httpStatusCodeError import HttpStatusCodeError
-from common.db_connection import get_db_connection
+# Configuración de la base de datos
+DB_HOST = 'database-1.cl0i4sksgakv.us-east-2.rds.amazonaws.com'
+DB_NAME = 'barca'
+USERNAME = 'admin'
+PASSWORD = 'admin123'
 
+def get_db_connection():
+    """Función para obtener la conexión a la base de datos."""
+    try:
+        return pymysql.connect(
+            host=DB_HOST,
+            user=USERNAME,
+            password=PASSWORD,
+            db=DB_NAME
+        )
+    except pymysql.MySQLError:
+        raise HttpStatusCodeError(500, "Error connecting to database")
+
+class HttpStatusCodeError(Exception):
+    """ Excepción personalizada para manejar errores de código de estado HTTP.
+
+    Args:
+        status_code (int): Código de estado HTTP
+        message (str): Mensaje de error
+
+    Attributes:
+        status_code (int): Código de estado HTTP
+        message (str): Mensaje de error
+    """
+    def __init__(self, status_code, message):
+        self.status_code = status_code
+        self.message = message
+
+# Configuración de CORS
 open_headers = {
     'Access-Control-Allow-Headers': '*',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
 }
 
-
 def lambda_handler(event, ___):
+    """Manejador Lambda para procesar los eventos."""
     try:
         response = get_barcas()
     except HttpStatusCodeError as e:
@@ -28,8 +60,8 @@ def lambda_handler(event, ___):
 
     return response
 
-
 def get_barcas():
+    """Función para obtener todas las barcas de la base de datos."""
     conn = get_db_connection()
 
     try:
@@ -43,3 +75,4 @@ def get_barcas():
             }
     except Exception as e:
         raise HttpStatusCodeError(500, str(e))
+

@@ -5,37 +5,182 @@ Description: >
 
   Sample SAM Template for api-barca
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 120
+    MemorySize: 256
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'*'"
+      AllowOrigin: "'*'"
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      CodeUri: hello_world/
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaBasicExecution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - apigateway:POST
+                  - apigateway:GET
+                  - apigateway:PUT
+                  - apigateway:DELETE
+                  - apigateway:OPTIONS
+                  - apigateway:PATCH
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:InvokeAsync
+                  - lambda:GetFunction
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:PutFunctionConcurrency
+                  - lambda:DeleteFunction
+                  - lambda:ListVersionsByFunction
+                  - lambda:ListAliases
+                  - lambda:ListTags
+                  - lambda:ListFunctions
+                  - lambda:GetFunctionConfiguration
+                  - lambda:GetPolicy
+                  - lambda:CreateAlias
+                  - lambda:DeleteAlias
+                  - lambda:TagResource
+                  - lambda:UntagResource
+                  - lambda:PublishVersion
+                  - lambda:PutFunctionEventInvokeConfig
+                  - lambda:DeleteFunctionEventInvokeConfig
+                  - lambda:ListFunctionEventInvokeConfigs
+                  - lambda:ListProvisionedConcurrencyConfigs
+                  - lambda:GetProvisionedConcurrencyConfig
+                  - lambda:PutProvisionedConcurrencyConfig
+                  - lambda:DeleteProvisionedConcurrencyConfig
+                Resource: "*"
+
+  GetBarcasFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_barcas/
       Handler: app.lambda_handler
       Runtime: python3.12
+      Role: !GetAtt LambdaExecutionRole.Arn
       Architectures:
         - x86_64
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        GetAllMissions:
+          Type: Api
           Properties:
-            Path: /hello
+            RestApiId: !Ref BarcaApi
+            Path: /get_barcas
             Method: get
 
+  RegisterBarcaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/register_barca/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+        - x86_64
+      Events:
+        InsertMission:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcaApi
+            Path: /register_barca
+            Method: post
+
+  UpdateBarcaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/update_barca/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+        - x86_64
+      Events:
+        GetOneMission:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcaApi
+            Path: /update_barca
+            Method: post
+
+  DeleteBarcaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/delete_barca/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+        - x86_64
+      Events:
+        CompleteMission:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BarcaApi
+            Path: /delete_barca
+            Method: post
+
+  BarcaApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Name: BarcaApi
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  LambdaExecutionRoleArn:
+    Description: "Implicit IAM Role created for Lambda function"
+    Value: !GetAtt LambdaExecutionRole.Arn
+
+  GetBarcasApiUrl:
+    Description: "API Gateway endpoint URL for Prod stage for GetBarcas function"
+    Value: !Sub "https://${BarcaApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get_barcas/"
+  RegisterBarcaApiUrl:
+    Description: "API Gateway endpoint URL for Prod stage for RegisterBarca function"
+    Value: !Sub "https://${BarcaApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/register_barca/"
+  UpdateBarcaApiUrl:
+    Description: "API Gateway endpoint URL for Prod stage for UpdateBarca function"
+    Value: !Sub "https://${BarcaApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update_barca/"
+  DeleteBarcaApiUrl:
+    Description: "API Gateway endpoint URL for Prod stage for DeleteBarca function"
+    Value: !Sub "https://${BarcaApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/delete_barca/"
+
+  GetBarcasFunctionArn:
+    Description: "GetBarcas Lambda Function ARN"
+    Value: !GetAtt GetBarcasFunction.Arn
+  RegisterBarcaFunctionArn:
+    Description: "RegisterBarca Lambda Function ARN"
+    Value: !GetAtt RegisterBarcaFunction.Arn
+  UpdateBarcaFunctionArn:
+    Description: "UpdateBarca Lambda Function ARN"
+    Value: !GetAtt UpdateBarcaFunction.Arn
+  DeleteBarcaFunctionArn:
+    Description: "DeleteBarca Lambda Function ARN"
+    Value: !GetAtt DeleteBarcaFunction.Arn
